@@ -305,7 +305,14 @@ BOOL CALLBACK cpuinfo_x86_windows_init(PINIT_ONCE init_once, PVOID parameter, PV
 				/* Set SMT ID (assume logical processors within
 				 * the core are reported in APIC order) */
 				processors[processor_id].smt_id = smt_id++;
-				processors[processor_id].core = (const struct cpuinfo_core*)NULL + core_id;
+				/* Encodes core_id as a byte offset from a null base (relying on
+				 * pointer-arithmetic scaling by sizeof(cpuinfo_core)), later
+				 * decoded via uintptr_t addition to the real `cores` base
+				 * below -- avoids doing that arithmetic directly on a null
+				 * pointer (technically UB; zig's runtime safety checks catch
+				 * it), even though the encoded *value* is identical. */
+				processors[processor_id].core =
+					(const struct cpuinfo_core*)(uintptr_t)(core_id * sizeof(struct cpuinfo_core));
 
 				/* Reset the lowest bit in affinity mask */
 				group_processors_mask &= (group_processors_mask - 1);
